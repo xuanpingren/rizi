@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN" class="ua-windows ua-ff24">
+
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta name="秦历" CONTENT="以秦始皇统一中国为秦元年">
+    <title>秦历 | 以秦始皇统一中国为元年 以农历为主显</title>
+  </head>
+
+  <body>
+
+    <form method=POST action="./ql.cgi">
+
+      <fieldset>
+	<legend> 秦历 - 以秦统一中国为元年，以农历为主显 </legend>
+	<fieldset>
+	  <legend>（可不填）</legend>
+	  起：<input type="text" name="start" value="0">
+	  迄：<input type="text" name="end"   value="0">
+	  详略：<select name="detail">
+	    <option value="0">略</option>
+	    <option value="1">详</option>
+	  </select><br>
+	</fieldset>
+
+	<fieldset>
+	  <legend>显示公历</legend>
+	  <input type="radio" name="gl" value="1">是<input type="radio" name="gl" value="0" checked>否<br>
+	</fieldset>
+
+	<br/>
+
+	<input type="submit" value="秦历">
+	<input type="reset" value="清空">
+
+      </fieldset>
+    </form>
+
+    
+    <p>
+      <a href="http://zhaoqipengbo.com">朝气蓬勃社</a>出品 秦2235年 
+      <a href="group.html">队伍</a>
+    </p>
+
+  </body>
+
+</html>
