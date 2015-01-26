@@ -564,7 +564,6 @@ void print_random_poem(int i)
   case 0:
     break;
   case 1:
-
     break;
   case 2:
     break;
@@ -784,4 +783,4 @@ int main(int argc, char *argv[])
 
   return 0;
 }
-/* 朝气蓬勃社 (zhaoqipengbo.com) 出品。作者：宣平人， 。。。 */
+/* 朝气蓬勃社 (zhaoqipengbo.com) 出品。作者：宣平人， 等等等。。。 */
