@@ -831,54 +831,50 @@ print_circles(int curr_jq, int offset, int month, int day, int num_days,
     printf("</svg>\n");
 }
 
-void
-convert_to_qinli_nian_yue_ri(int year, int month, int day, int* qn,
-                             int* qy, int* qr, int* n)
+
+void 
+convert_to_qinli_nian_yue_ri(int year, int month, int day, 
+				  int *qn, int *qy, int *qr, int *n)
 {
-    int i;
-    int m,
-        d;
-    /*
-     * 公历年月日与农历年月日转化表 
-     */
-    const int year2015[][5] = { { 1, 1, 11, 11, 29 }, /* 1月1日对应农历11月11日（上一年），共29日 
-								 */
-                                { 1, 20, 12, 1, 30 },
-                                { 2, 19, 1, 1, 30 },
-                                { 3, 20, 2, 1, 30 },
-                                { 4, 18, 3, 1, 30 },
-                                { 5, 18, 4, 1, 29 },
-                                { 6, 16, 5, 1, 29 },
-                                { 7, 16, 6, 1, 30 },
-                                { 8, 14, 7, 1, 29 },
-                                { 9, 13, 8, 1, 30 },
-                                { 10, 13, 9, 1, 30 },
-                                { 11, 12, 10, 1, 30 },
-                                { 12, 11, 11, 1, 29 } };
+  int i;
+  int m, d;
+  /* 公历年月日与农历年月日转化表 */
+  const int year2015[][6] = {{1, 20, 12, 1, 30, 31}, /* 1月20日对应农历12月1日。最后两项为农历该月30日，公历该月31日 */
+                             {2, 19, 1,  1, 30, 28},
+                             {3, 20, 2,  1, 30, 31},
+                             {4, 18, 3,  1, 30, 30},
+                             {5, 18, 4,  1, 29, 31},
+                             {6, 16, 5,  1, 29, 30},
+                             {7, 16, 6,  1, 30, 31},
+                             {8, 14, 7,  1, 29, 31},
+                             {9, 13, 8,  1, 30, 30},
+                             {10, 13, 9, 1, 30, 31},
+                             {11, 12, 10,1, 30, 30},
+                             {12, 11, 11,1, 29, 31}};
 
-    *qn = 0; /* TODO */
-    *qy = 1;
-    *qr = 1;
-    *n = 30;
-    for (i = 0; i < sizeof(year2015) / sizeof(year2015[0]) - 1; i++) {
-        m = year2015[i][0];
-        d = year2015[i][1];
-        if ((month == m && day >= d && month < year2015[i + 1][0])
-            || (month == year2015[i + 1][0]
-                && day < year2015[i + 1][1])) {
-            *qy = year2015[i][2]; /* 秦月 */
-            *qr = (day - d) + year2015[i][3]; /* 秦日 */
-            *n = year2015[i][4];
-            return;
-        }
-    }
+  *qn = 0; /* TODO */
+  *qy = 1;
+  *qr = 1;
+  *n = 30;
 
-    if (month == year2015[i][0] && day >= year2015[i][1]) {
-        *qy = year2015[i][2]; /* 秦月 */
-        *qr = (day - year2015[i][1]) + year2015[i][3]; /* 秦日 */
-        *n = year2015[i][4];
+  for (i = 0; i < sizeof(year2015)/sizeof(year2015[0]); i++) {
+    m = year2015[i][0];
+    d = year2015[i][1];
+    if (month == m && day >= d) {
+      *qy = year2015[i][2]; /* 秦月 */
+      *qr = (day - d) + year2015[i][3]; /* 秦日 */
+      *n = year2015[i][4];
+      return;
+    } else if (month == m && day < d) {
+      *qy = year2015[i-1][2]; /* 秦月 */
+      *qr = day + (year2015[i-1][5] - year2015[i-1][1]) + year2015[i-1][3]; /* 秦日 */
+      *n = year2015[i-1][4];
+      return;
     }
+  }
+
 }
+
 
 int
 main(int argc, char* argv[])
