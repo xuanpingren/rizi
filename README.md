@@ -10,5 +10,8 @@ https://github.com/xuanpingren/rizi/archive/master.zip
 [ 源码简述 ]
 从index.html读入用户数据，比如起迄时间，是否显示公历。然后qinli.c处理之。 get_form_input 这个函数把用户数据读入，写到叫做form的结构中。见94行和734行。 qinli.c主要做转换的工作，就是把目前的计算机时间换成农历。 qinli.c打印出一个漂亮网页，用函数printf。点击秦历按钮后，就会调用一系列的printf，输出一个网页。
 
-[ 讨论区 ]
-关于codeblocks报错问题。建议仅使用codeblocks做编辑器，（为了一致性）用MinGW做编译器，非常方便。MinGW下载见准备那节。 网页只是提供一个界面，点击秦历后调用的是c可执行文件ql.cgi。在网页中输入的参数存放在qinli.c的form结构中。
+[ 测试 ]
+上面步骤完成后，把ql.cgi与index.html复制到Apache默认主页存放位置。 打开浏览器，在地址栏输入127.0.0.1/index.html，就可以运行了。
+
+[ 上交代码 ]
+代码发到邮箱(structunion@gmail.com)合并。我合并后会更新换代。以后可以研究更先进的方式。
