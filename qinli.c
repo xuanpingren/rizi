@@ -4,7 +4,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
-#include "ccgi.h"
+#include "./ccgi-1.1/ccgi.h"
 
 #define MAX_RECORD_SIZE 500
 const char tian_gan[][8] = {"甲","乙","丙","丁","戊","己","庚","辛","壬","癸"};
