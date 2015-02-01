@@ -16,4 +16,4 @@ https://github.com/xuanpingren/rizi/archive/kaifa.zip
 上面步骤完成后，把ql.cgi与index.html复制到Apache默认主页存放位置。 打开浏览器，在地址栏输入127.0.0.1/index.html，就可以运行了。测试主要可以用prinf打印，然后刷新index.html看效果与输出。
 
 [ 上交代码 ]
-代码发到宣平人邮箱合并。他合并后会更新换代。以后可以研究更先进的方式。（如果用git，可自行提交到 <b>kaifa 分支</b>。流程参考 https://github.com/xuanpingren/rizi/wiki/%E4%BD%BF%E7%94%A8git%E5%8D%8F%E4%BD%9C%E5%B7%A5%E4%BD%9C%E6%B5%81%E7%A8%8B）
+代码发到宣平人邮箱合并。他合并后会更新换代。以后可以研究更先进的方式。（如果用git，可自行提交到 <b>kaifa 分支</b>。流程参考 https://github.com/xuanpingren/rizi/wiki/ 下的使用git协作工作流程页面）
