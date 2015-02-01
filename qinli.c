@@ -9,6 +9,8 @@
 #include "ccgi-1.1/ccgi.h"
 
 #define MAX_RECORD_SIZE 500
+#define NUM_CANDIDATE_NAME 3 /* 可供选择的姓名 */
+
 const char tian_gan[][8] = { "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬",
                              "癸" };
 
@@ -103,11 +105,52 @@ struct gz { /* 天干地支结构，两个编号 */
 };
 
 struct form {
-    int s;
-    int e;
-    int detail;
-    int display_gl; /* 顺便显示公历 */
+  int s;
+  int e;
+  int detail;
+  int display_gl; /* 顺便显示公历 */
+  /* 以下各项起名用 */
+  char x[8];     /* 姓 */
+  char bazi[20]; /* 八字 */
 };
+
+
+/* 
+ * 以下两个结构与取名字相关 
+ * 字取自左传 http://www.gutenberg.org/files/24136/24136-0.txt  
+ * 与诗经    http://www.gutenberg.org/files/23873/23873-0.txt
+ */
+struct zi_property {
+  unsigned int yd  : 3; /* 音调1,2,3,4 取名字是要音调搭配 不能全是一个音调 这样未免单调 */ 
+  unsigned int yy  : 1; /* 阴阳 阳1阴0 取名字时要阴阳协调 避免全阴全阳 */
+  unsigned int wx  : 3; /* 五行 不确定0金1木2水3火4土5 取名字是字与字不要相克 而且不要和生辰八字相克 */
+};
+
+struct zi { 
+  char z[4];   /* 存一个字 */ 
+  char zy[80]; /* 字义 不要超过40字 */ 
+  double p;    /* 这个字出现概率 坏字极小概率出现 */ 
+  struct zi_property zp; /* 字的一些音调阴阳五行属性 */
+};
+
+struct baby_name {
+  struct zi xing; /* 姓 */
+  struct zi ming[NUM_CANDIDATE_NAME][2]; /* 名 */
+  int zi_count[NUM_CANDIDATE_NAME];  /* 每个备选名有几个字 */
+};
+
+const struct zi zuo_zhuan_zi[] = {{"左", "暂缺", 1.0, {3, 0, 0}},
+			       {"丘", "土之高也", 0.8, {1, 1, 5}},
+			       {"明", "古文从日", 1.0, {2, 1, 4}},
+			       {"隐", "蔽也", 0.6, {3, 0, 5}},
+			       {"公", "暂缺", 0.9, {1, 1, 4}},
+			       {"元", "始也", 0.95, {2, 1, 1}},
+			       {"年", "暂缺", 0.5, {2, 1, 0}},
+			       {"惠", "仁也", 0.7, {4, 1, 0}},
+			       {"妃", "暂缺", 0.3, {1, 0, 3}},
+			       {"孟", "长也", 0.8, {4, 1, 2}}
+};
+
 
 int
 get_form_input(struct form* info)
@@ -133,9 +176,6 @@ get_form_input(struct form* info)
         value = CGI_lookup_all(varlist, 0);
 
         for (i = 0; value[i] != 0; i++) {
-            /*
-	     * printf("%s [%d] = %s\r<br>", name, i, value[i]); 
-	     */
             if (strcmp(name, "start") == 0)
                 info->s = atoi(value[i]);
             if (strcmp(name, "end") == 0)
@@ -144,6 +184,10 @@ get_form_input(struct form* info)
                 info->detail = atoi(value[i]);
             if (strcmp(name, "gl") == 0)
                 info->display_gl = atoi(value[i]);
+            if (strcmp(name, "last_name") == 0)
+	      strcpy(info->x, value[i]);
+            if (strcmp(name, "bazi") == 0)
+	      strcpy(info->bazi, value[i]);
         }
     }
 
@@ -696,6 +740,54 @@ print_random_poem(int i)
     }
 }
 
+
+struct baby_name
+select_baby_name(char *last_name, char *bazi, struct gz year, struct gz date)
+{
+  /*  
+   * 先从简单的开始。 
+   * 随机选几个字。先决定一字名或二字名， 再决定选那本书，后决
+   * 定选哪个字。选字注意阴阳搭配，音调搭配，五行相生。 
+   */
+  int num_zi = 2; /* 取几个字的名字 */
+  int i = 0, 
+      j;
+  struct zi onez;
+  struct baby_name bn;
+
+  strcpy(bn.xing.z, last_name);
+  srand(time(NULL));
+  while (i < NUM_CANDIDATE_NAME) {
+    num_zi = rand() % 2 + 1; 
+    for (j = 0; j < num_zi; j++) {
+      onez = zuo_zhuan_zi[rand() % (sizeof(zuo_zhuan_zi) / sizeof(zuo_zhuan_zi[0]))];
+      bn.ming[i][j] = onez;
+    }
+    bn.zi_count[i] = num_zi;
+    i++;
+  }
+
+  return bn;
+}
+
+
+void
+print_baby_name(struct baby_name bn)
+{
+    int i, j;
+    
+    printf("<br/><font color=\"grey\">名字：</font>");
+    for (i = 0; i < NUM_CANDIDATE_NAME; i++) {
+        printf("%s", bn.xing.z);
+	for (j = 0; j < bn.zi_count[i]; j++) {
+	  printf("%s", bn.ming[i][j].z);
+	}
+	printf("&nbsp;&nbsp;");
+    }
+    printf("<br/>");
+}
+
+
 void
 bottom()
 {
@@ -939,6 +1031,10 @@ main(int argc, char* argv[])
                                      time_info->tm_mon + 1,
                                      time_info->tm_mday, &qn, &qy, &qr,
                                      &ndays);
+	if (strcmp(info.x, "") != 0) { /* 要起名字 */
+	  struct baby_name candidate_name = select_baby_name(info.x, info.bazi, curr_year, curr_date);
+	  print_baby_name(candidate_name);
+	}
         print_circles(jq, offset, qy, qr, ndays, 33.0, 400.0, 300.0, info);
     } else if (info.s <= 0 || info.e <= 0 || info.s > info.e) {
         printf("<font color=red>输入正确起迄时间</font><br/>\n");
