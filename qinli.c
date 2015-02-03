@@ -139,6 +139,7 @@ struct baby_name {
   int zi_count[NUM_CANDIDATE_NAME];  /* 每个备选名有几个字 */
 };
 
+
 /* zuo_zhuan_zi start */
 const struct zi zuo_zhuan_zi[] = {{"左", "手相左助也", 1.0, {3, 1, 2}},  /* 3000多字 需要人工填充意义，音调，阴阳，五行 */
 				  {"丘", "土之高也", 0.8, {1, 1, 5}},
@@ -4026,6 +4027,7 @@ bottom()
     printf("<br/><br/><font size=-1><a href=\"http://zhaoqipengbo.com\">朝气蓬勃社</a>出品</font><br/>");
 }
 
+
 void
 print_month(int month, int day, int num_days, double r, double cx,
             double cy, struct form info)
@@ -4047,8 +4049,10 @@ print_month(int month, int day, int num_days, double r, double cx,
         if (i + 1 == day) {
             printf("<circle cx=%g cy=%g r=%g fill=\"yellow\" opacity = %g />\n",
                    x, y, r, opacity);
+	    printf("<a xlink:href=\"2235/%02d/%02d.html\">\n", month, i + 1);
             printf("<text x=%g y=%g fill=\"black\" font-weight=\"bold\">%s</text>\n",
                    x - 15, y + 10, ri[i]);
+	    printf("</a>");
             printf("<text x=%g y=%g fill=\"black\" font-size=\"10\" font-weight=\"bold\">%s</text>\n",
                    x - 15, y - 10, yue[month - 1]);
             if (info.display_gl == 1) {
@@ -4063,16 +4067,21 @@ print_month(int month, int day, int num_days, double r, double cx,
         } else if (i + 1 < day) {
             printf("<circle cx=%g cy=%g r=%g fill=\"yellow\" opacity = %g />\n",
                    x, y, r, opacity);
+	    printf("<a xlink:href=\"2235/%02d/%02d.html\">\n", month, i + 1);
             printf("<text x=%g y=%g>%s</text>\n", x - 15, y + 8, ri[i]);
+	    printf("</a>");
         } else {
             printf("<circle cx=%g cy=%g r=%g fill=\"none\" stroke=\"#F0F0F0\" />\n",
                    x, y, r);
+	    printf("<a xlink:href=\"2235/%02d/%02d.html\">\n", month, i + 1);
             printf("<text x=%g y=%g fill=\"grey\">%s</text>\n",
                    x - 15, y + 8, ri[i]);
+	    printf("</a>");
         }
         printf("</g>\n");
     }
 }
+
 
 void
 print_jieqi_progress(int curr_jq, int offset, double r, double cx,
@@ -4289,6 +4298,7 @@ main(int argc, char* argv[])
 
     return 0;
 }
+
 
 /*
  * 朝气蓬勃社 (zhaoqipengbo.com) 出品。开发小组 ys.zhaoqipengbo.com/committee.html
