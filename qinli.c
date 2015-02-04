@@ -9,7 +9,8 @@
 #include "ccgi-1.1/ccgi.h"
 
 #define MAX_RECORD_SIZE 500
-#define NUM_CANDIDATE_NAME 3 /* 可供选择的姓名 */
+#define NUM_CANDIDATE_NAME 3     /* 可供选择的姓名 */
+#define SELECT_NAME_MAX_TRY 20   /* 选名字时最多试几次 */
 
 const char tian_gan[][8] = { "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬",
                              "癸" };
@@ -49,14 +50,14 @@ const char spring_poem[][100] = { "暮春三月 江南草长 杂花生树 群莺
                                   "江南好 风景旧曾谙",
                                   "日出江花红胜火 春来江水绿如蓝",
                                   "春风桃李花开日 秋雨梧桐叶落时",
-                                  "一片花飞减却春 风飘万点正愁日",
+                                  "一片花飞减却春 风飘万点正愁人",
                                   "春江花月夜",
                                   "春 气清而温阳",
                                   "十年春 齐师伐我",
                                   "清流激湍 映带左右",
                                   "流觞曲水 列坐其次",
                                   "仰观宇宙之大 俯察品类之盛",
-                                  "一觞一泳 足以畅叙幽情",
+                                  "一觞一咏 亦足以畅叙幽情",
                                   "林花谢了春红 太匆匆",
                                   "谁言寸草心 报得三春晖",
                                   "且看欲尽花经眼 何用浮名绊此身",
@@ -2486,7 +2487,6 @@ const struct zi zuo_zhuan_zi[] = {{"左", "手相左助也", 1.0, {3, 1, 2}},  /
 				  {"草", "暂缺", 0.61, {0, 3, 0}},
 				  {"釁", "暂缺", 0.61, {0, 3, 0}},
 				  {"隕", "暂缺", 0.61, {0, 3, 0}},
-				  {"0", "暂缺", 0.61, {0, 3, 0}},
 				  {"猛", "暂缺", 0.61, {0, 3, 0}},
 				  {"肉", "暂缺", 0.61, {0, 3, 0}},
 				  {"柔", "暂缺", 0.61, {0, 3, 0}},
@@ -4053,6 +4053,7 @@ select_baby_name(int mode, char *last_name, char *bazi, struct gz year, struct g
   struct zi onez;
   struct baby_name bn;
   double p = 1.0;
+  double maxp;
   int count;
 
   strcpy(bn.xing.z, last_name);
@@ -4061,12 +4062,16 @@ select_baby_name(int mode, char *last_name, char *bazi, struct gz year, struct g
     num_zi = rand() % 2 + 1; 
     for (j = 0; j < num_zi; j++) {
       count = 0;
+      p = (double) rand() / RAND_MAX; /* 0-1之间的随机数 */
+      maxp = 0.0;
       do { /* 概率大的字优先 */
 	count++;
 	onez = zuo_zhuan_zi[rand() % (sizeof(zuo_zhuan_zi) / sizeof(zuo_zhuan_zi[0]))];
-	bn.ming[i][j] = onez;
-	p = (double) rand() / RAND_MAX; /* 0-1之间的随机数 */
-      } while (onez.p < p && count < 20);
+	if (onez.p > maxp) { /* 要概率最大的那个字 */
+	  bn.ming[i][j] = onez;
+	  maxp = onez.p;
+	}
+      } while (onez.p < p && count < SELECT_NAME_MAX_TRY);
     }
     bn.zi_count[i] = num_zi;
     i++;
@@ -4374,5 +4379,5 @@ main(int argc, char* argv[])
 
 
 /*
- * 朝气蓬勃社 (zhaoqipengbo.com) 出品。开发小组 ys.zhaoqipengbo.com/committee.html
+ * 朝气蓬勃社 (zhaoqipengbo.com) 出品。开发小组 rizi.zhaoqipengbo.com/group.html
  */
