@@ -4386,7 +4386,6 @@ main(int argc, char* argv[])
     return 0;
 }
 
-
 /*
- * 朝气蓬勃社 (zhaoqipengbo.com) 出品。开发小组 rizi.zhaoqipengbo.com/group.html
+ * 朝气蓬勃社开发小组
  */
