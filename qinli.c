@@ -186,7 +186,7 @@ struct form {
  * 与诗经    http://www.gutenberg.org/files/23873/23873-0.txt
  */
 struct zi_property {
-  unsigned int yd  : 3; /* 音调1,2,3,4 待定0 取名字是要音调搭配 不能全是一个音调 这样未免单调 */ 
+  unsigned int yd  : 4; /* 音调1=0001,2=0010,3=0100,4=1000 待定0000 取名字是要音调搭配 不能全是一个音调 这样未免单调 */ 
   unsigned int yy  : 2; /* 阴阳 阴0 阳1 中2 待定3 取名字时要阴阳协调 避免全阴全阳 */
   unsigned int wx  : 3; /* 五行 待定0 金1木2水3火4土5 取名字是字与字不要相克 而且不要和生辰八字相克 */
   unsigned int sj  : 3; /* 四季 春1夏2秋3冬4 待定0 */
