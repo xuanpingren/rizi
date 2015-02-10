@@ -177,6 +177,7 @@ struct form {
   /* 以下各项起名用 */
   char x[8];     /* 姓 */
   char bazi[20]; /* 八字 */
+  int  mode;     /* 模式 */
 };
 
 
@@ -3489,6 +3490,8 @@ get_form_input(struct form* info)
 	      strcpy(info->x, value[i]);
             if (strcmp(name, "bazi") == 0)
 	      strcpy(info->bazi, value[i]);
+            if (strcmp(name, "mode") == 0)
+	      info->mode = atoi(value[i]);
         }
     }
 
@@ -4053,8 +4056,8 @@ select_baby_name(int mode, char *last_name, char *bazi, struct gz year, struct g
    * 定选哪个字。选字注意阴阳搭配，音调搭配，五行相生。 
    * 以后的话 考虑增加模式1234
    * mode 0： 随机模式
-   * mode 1： 经济模式 考虑阴阳 但不考虑五行
-   * mode 2： 加强模式 考虑五行 但不考虑八字
+   * mode 1： 平民模式 考虑阴阳 但不考虑五行
+   * mode 2： 成功模式 考虑五行 但不考虑八字
    * mode 3： 无忧模式 考虑八字 但不考虑音调
    * mode 4： 入神模式 考虑音调 考虑节气
    */
@@ -4362,7 +4365,7 @@ main(int argc, char* argv[])
                                      time_info->tm_mday, &qn, &qy, &qr,
                                      &ndays);
 	if (strcmp(info.x, "") != 0) { /* 要起名字 */
-	  struct baby_name candidate_name = select_baby_name(0, info.x, info.bazi, curr_year, curr_date);
+	  struct baby_name candidate_name = select_baby_name(info.mode, info.x, info.bazi, curr_year, curr_date);
 	  print_baby_name(candidate_name);
 	}
         print_circles(jq, offset, qy, qr, ndays, 33.0, 400.0, 300.0, info);
