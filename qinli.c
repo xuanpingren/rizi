@@ -10,7 +10,8 @@
 
 #define MAX_RECORD_SIZE 500
 #define NUM_CANDIDATE_NAME 3     /* 可供选择的姓名 */
-#define SELECT_NAME_MAX_TRY 20   /* 选名字时最多试几次 */
+#define SELECT_ZI_MAX_TRY  20    /* 选字时最多试几次 */
+#define SELECT_NAME_MAX_TRY 100  /* 选名字时最多试几次 */
 
 const char tian_gan[][8] = { "甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬",
                              "癸" };
@@ -3454,6 +3455,11 @@ const struct zi zuo_zhuan_zi[] = {
 };
 /* zuo_zhuan_zi 111 */
 
+const struct zi xing_zi[] = {  /* 各种姓的字 */
+{"陈", "9648", 1.00, {2, 1, 1, 0, 0}, "chen2", ""}
+};
+
+
 int
 get_form_input(struct form* info)
 {
@@ -4046,6 +4052,160 @@ print_random_poem(int i)
     }
 }
 
+#define SOUND_SIMILARITY_THRESHOLD  0.2
+#define SHENGMU_WEIGHT   1
+#define YUNMU_WEIGHT     1
+#define YINDIAO_WEIGHT   4
+
+/* 数出x中有多少位1 */
+int
+number_of_bit_one(unsigned char x)
+{
+  int n = 0;
+  while (x > 0) {
+    if (x & 0x1) /* 最低位有1 */
+      n++;
+    x >>= 1; /* x右移1位 */
+  }
+  return n;
+}
+
+/* 
+ * 计算两个字的音调相似度，0001表示该字仅有第一声，0100表示该字仅有第三声
+ * a = 0001
+ * b = 0100
+ * 相似度为0/2 = 0
+ * a = 0001
+ * b = 0001
+ * 相似度为1/1 = 1
+ * a = 0001
+ * b = 1001
+ * 相似度为1/2 = 0.5
+ */
+double
+compute_yindiao_similarity(struct zi a, struct zi b)
+{
+  int num_common_yindiao = 0;
+  int num_total_yindiao = 1;
+  
+  num_common_yindiao = number_of_bit_one(a.zp.yd & b.zp.yd);
+  num_total_yindiao =  number_of_bit_one(a.zp.yd | a.zp.yd);
+  return 1.0 * num_common_yindiao / num_total_yindiao;
+}
+
+/* 计算两个字的声母相似度 TODO */
+double
+compute_shengmu_similarity(struct zi a, struct zi b)
+{
+  /* 要考虑单音字与多音字。令a的声母集合为A，b的声母集合为B，那么a与b
+     的声母相似度等于 A交B集合大小除以A并B集合大小 */
+  return 0.0;
+}
+
+/* 计算两个字的韵母相似度 TODO */
+double
+compute_yunmu_similarity(struct zi a, struct zi b)
+{
+  /* 与计算两个字的声母相似度同理 */
+  return 0.0;
+}
+
+
+/* 检查所选的名字阴阳是否满足要求 TODO */
+int
+check_yin_yang(struct baby_name bn, int i, int n)
+{
+  return 1;
+}
+
+/* 检查所选的名字五行是否满足要求 TODO */
+int
+check_wu_xing(struct baby_name bn, int i, int n)
+{
+  return 1;
+}
+
+/* 检查所选的名字八字是否满足要求 TODO */
+int
+check_bazi(struct baby_name bn, int i, int n, char *bazi)
+{
+  return 1;
+}
+
+/* 检查第i个备选名是否符合音的要求，第i个备选名共n个字（不包括姓）。符合要求返回1，不符合返回0。 */
+int
+check_yin(struct baby_name bn, int i, int n)
+{
+  int j;
+  double similarity[2] = {0.0, 0.0}; /* 存姓与名字1的相似度，名字1与名字2的相似度（如果有）*/
+  struct zi a, b;
+
+  if (n == 1 || n == 2) { /* 单字名或双字名 */
+    for (j = 0; j < n; j++) {
+      if (j == 0) {
+	a = bn.xing;
+	b = bn.ming[i][0];
+      } else if (j == 1) {
+	a = bn.ming[i][0];
+	b = bn.ming[i][1];
+      }
+      similarity[j] = 
+	(YINDIAO_WEIGHT * compute_yindiao_similarity(a, b)
+	 + SHENGMU_WEIGHT * compute_shengmu_similarity(a, b)
+	 + YUNMU_WEIGHT * compute_yunmu_similarity(a, b)) / (YINDIAO_WEIGHT + SHENGMU_WEIGHT + YUNMU_WEIGHT);
+    }
+    return  (similarity[0] > similarity[1] ? similarity[0] : similarity[1]) \
+      <= SOUND_SIMILARITY_THRESHOLD; /* 如果没那么相似，就返回1，表示该备选名音检查合格；反之，返回0 */
+  }
+  return 0; /* 不符合要求 */
+}
+
+
+/* 随机从zuo_zhuan_zi中选取一个字，概率较大的字相对容易被选到 */
+struct zi
+randomly_select_one_zi(void)
+{
+  int count;
+  double p = 1.0;
+  double maxp;
+  struct zi onez, max_prob_z;
+  
+  count = 0;
+  p = (double) rand() / RAND_MAX; /* 0-1之间的随机数 */
+  maxp = 0.0;
+  do { /* 选一个字， 概率大的字优先 */
+    count++;
+    onez = zuo_zhuan_zi[rand() % (sizeof(zuo_zhuan_zi) / sizeof(zuo_zhuan_zi[0]))];
+    if (onez.p > maxp) { /* 要概率最大的那个字 */
+      max_prob_z = onez;
+      maxp = onez.p;
+    }
+  } while (onez.p < p && count < SELECT_ZI_MAX_TRY);
+
+  return max_prob_z;
+}
+
+/* 初始化姓的字结构 */
+struct zi init_xing(char *last_name)
+{
+  struct zi x;
+  int i;
+
+  /* 查xing_zi表，如果找到这个姓，就返回这个字的结构 */
+  for (i = 0; i < sizeof(xing_zi) / sizeof(xing_zi[0]); i++)
+    if (strcmp(xing_zi[i].z, last_name) == 0)
+      return xing_zi[i];
+
+  /* 初始化姓的各项，目前暂时不考虑姓的阴阳五行八字音等 */
+  strcpy(x.z, last_name);
+  x.zp.yd = 0;
+  x.zp.yy = 3;
+  x.zp.wx = 0;
+  x.zp.sj = 0;
+  x.zp.jq = 0;
+  
+  return x;
+}
 
 struct baby_name
 select_baby_name(int mode, char *last_name, char *bazi, struct gz year, struct gz date)
@@ -4064,30 +4224,33 @@ select_baby_name(int mode, char *last_name, char *bazi, struct gz year, struct g
   int num_zi = 2; /* 取几个字的名字 */
   int i = 0, 
       j;
-  struct zi onez;
   struct baby_name bn;
-  double p = 1.0;
-  double maxp;
-  int count;
+  int try;  /* 记录试错次数 */
+  int pass_yin_yang = 1; /* 默认通过阴阳检测 */
+  int pass_wu_xing = 1;  /* 默认通过无形检测 */
+  int pass_bazi = 1;     /* 默认通过八字检测 */
+  int pass_yin = 1;      /* 默认通过音检测 */
 
-  strcpy(bn.xing.z, last_name);
+  bn.xing = init_xing(last_name); /* 初始化姓的字结构，查xing_zi表，如果在，用对应的那项初始化之 */
+
   srand(time(NULL));
+
   while (i < NUM_CANDIDATE_NAME) {
-    num_zi = rand() % 2 + 1; 
-    for (j = 0; j < num_zi; j++) {
-      count = 0;
-      p = (double) rand() / RAND_MAX; /* 0-1之间的随机数 */
-      maxp = 0.0;
-      do { /* 概率大的字优先 */
-	count++;
-	onez = zuo_zhuan_zi[rand() % (sizeof(zuo_zhuan_zi) / sizeof(zuo_zhuan_zi[0]))];
-	if (onez.p > maxp) { /* 要概率最大的那个字 */
-	  bn.ming[i][j] = onez;
-	  maxp = onez.p;
-	}
-      } while (onez.p < p && count < SELECT_NAME_MAX_TRY);
-    }
-    bn.zi_count[i] = num_zi;
+    try = 0;
+    do {
+      num_zi = rand() % 2 + 1;  /* 确定名的字个数 */
+      bn.zi_count[i] = num_zi;
+      for (j = 0; j < num_zi; j++) /* 选 num_zi 个字 */
+	bn.ming[i][j] = randomly_select_one_zi();
+      if (mode == 1)
+	pass_yin_yang = check_yin_yang(bn, i, num_zi);
+      if (mode == 2)
+	pass_wu_xing = check_wu_xing(bn, i, num_zi);
+      if (mode == 3)
+	pass_bazi = check_bazi(bn, i, num_zi, bazi);
+      if (mode == 4)
+	pass_yin = check_yin(bn, i, num_zi);
+    } while (! (pass_yin_yang && pass_wu_xing && pass_bazi && pass_yin) && ++try < SELECT_NAME_MAX_TRY);
     i++;
   }
 
