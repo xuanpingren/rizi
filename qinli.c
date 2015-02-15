@@ -206,7 +206,7 @@ struct zi {
 };
 
 struct baby_name {
-  struct zi xing; /* 姓 */
+  struct zi xing; /* 姓，暂时只考虑单姓 */
   struct zi ming[NUM_CANDIDATE_NAME][2]; /* 名 */
   int zi_count[NUM_CANDIDATE_NAME];  /* 每个备选名有几个字 */
 };
@@ -3455,8 +3455,19 @@ const struct zi zuo_zhuan_zi[] = {
 };
 /* zuo_zhuan_zi 111 */
 
-const struct zi xing_zi[] = {  /* 各种姓的字 */
-{"陈", "9648", 1.00, {2, 1, 1, 0, 0}, "chen2", ""}
+
+/* 各种姓的字 */
+const struct zi xing_zi[] = {  
+  {"李", "674e", 1.00, {4, 1, 2, 0, 0}, "li3", ""},
+  {"王", "738b", 1.00, {2, 1, 5, 0, 0}, "wang2", ""},
+  {"张", "5f20", 1.00, {1, 1, 2, 0, 0}, "zhang1", ""},
+  {"刘", "5218", 1.00, {2, 0, 1, 0, 0}, "liu2", ""},
+  {"陈", "9648", 1.00, {2, 1, 1, 0, 0}, "chen2", ""},
+  {"杨", "6768", 1.00, {2, 1, 2, 0, 0}, "yang2", ""},
+  {"赵", "8d75", 1.00, {8, 0, 1, 0, 0}, "zhao4", ""},
+  {"黄", "9ec4", 1.00, {2, 1, 5, 0, 0}, "huang2", ""},
+  {"周", "5468", 1.00, {1, 1, 4, 0, 0}, "zhou1", ""},  
+  {"吴", "5434", 1.00, {2, 1, 1, 0, 0}, "wu2", ""}
 };
 
 
@@ -4052,7 +4063,7 @@ print_random_poem(int i)
     }
 }
 
-#define SOUND_SIMILARITY_THRESHOLD  0.2
+#define SOUND_SIMILARITY_THRESHOLD  0.25
 #define SHENGMU_WEIGHT   1
 #define YUNMU_WEIGHT     1
 #define YINDIAO_WEIGHT   4
@@ -4196,7 +4207,7 @@ struct zi init_xing(char *last_name)
     if (strcmp(xing_zi[i].z, last_name) == 0)
       return xing_zi[i];
 
-  /* 初始化姓的各项，目前暂时不考虑姓的阴阳五行八字音等 */
+  /* 初始化姓的各项，如果表中无，则暂时不考虑姓的阴阳五行八字音等 */
   strcpy(x.z, last_name);
   x.zp.yd = 0;
   x.zp.yy = 3;
@@ -4235,22 +4246,22 @@ select_baby_name(int mode, char *last_name, char *bazi, struct gz year, struct g
 
   srand(time(NULL));
 
-  while (i < NUM_CANDIDATE_NAME) {
+  while (i < NUM_CANDIDATE_NAME) { /* 每个循环选一个名字 */
     try = 0;
     do {
       num_zi = rand() % 2 + 1;  /* 确定名的字个数 */
       bn.zi_count[i] = num_zi;
       for (j = 0; j < num_zi; j++) /* 选 num_zi 个字 */
 	bn.ming[i][j] = randomly_select_one_zi();
-      if (mode == 1)
+      if (mode >= 1)
 	pass_yin_yang = check_yin_yang(bn, i, num_zi);
-      if (mode == 2)
+      if (mode >= 2)
 	pass_wu_xing = check_wu_xing(bn, i, num_zi);
-      if (mode == 3)
+      if (mode >= 3)
 	pass_bazi = check_bazi(bn, i, num_zi, bazi);
       if (mode == 4)
 	pass_yin = check_yin(bn, i, num_zi);
-    } while (! (pass_yin_yang && pass_wu_xing && pass_bazi && pass_yin) && ++try < SELECT_NAME_MAX_TRY);
+    } while (!(pass_yin_yang && pass_wu_xing && pass_bazi && pass_yin) && ++try < SELECT_NAME_MAX_TRY);
     i++;
   }
 
