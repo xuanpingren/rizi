@@ -4100,7 +4100,7 @@ compute_yindiao_similarity(struct zi a, struct zi b)
   int num_total_yindiao = 1;
   
   num_common_yindiao = number_of_bit_one(a.zp.yd & b.zp.yd);
-  num_total_yindiao =  number_of_bit_one(a.zp.yd | a.zp.yd);
+  num_total_yindiao =  number_of_bit_one(a.zp.yd | b.zp.yd);
   return 1.0 * num_common_yindiao / num_total_yindiao;
 }
 
