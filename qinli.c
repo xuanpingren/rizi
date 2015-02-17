@@ -4240,8 +4240,8 @@ print_random_poem(int i)
 }
 
 #define SOUND_SIMILARITY_THRESHOLD  0.25
-#define SHENGMU_WEIGHT   1
-#define YUNMU_WEIGHT     1
+#define SHENGMU_WEIGHT   2
+#define YUNMU_WEIGHT     2
 #define YINDIAO_WEIGHT   4
 
 /* 数出x中有多少位1 */
@@ -4280,13 +4280,77 @@ compute_yindiao_similarity(struct zi a, struct zi b)
   return 1.0 * num_common_yindiao / num_total_yindiao;
 }
 
-/* 计算两个字的声母相似度 TODO */
+/* 计算两个字的声母相似度 作者[flx413] */
 double
 compute_shengmu_similarity(struct zi a, struct zi b)
 {
   /* 要考虑单音字与多音字。令a的声母集合为A，b的声母集合为B，那么a与b
      的声母相似度等于 A交B集合大小除以A并B集合大小 */
-  return 0.0;
+
+  double p = 0.0;
+  char a_shengmu[6][3], b_shengmu[6][3]; /* 考虑多音字，字a,b最多有6个声母 （保守起见） */
+  int i, j, z;
+  int x, y, temp;
+  
+  /* 取得字a的声母 */
+  a_shengmu[0][0] = a.pinyin[0]; 
+  if(a.pinyin[1] == 'h') {
+      a_shengmu[0][1] = 'h';
+      a_shengmu[0][2] = '\0';
+  } else
+    a_shengmu[0][1]='\0';
+
+  /* 取得字b的声母 */
+  b_shengmu[0][0] = b.pinyin[0]; 
+  if(b.pinyin[1] == 'h') {
+    b_shengmu[0][1] = 'h';
+    b_shengmu[0][2] = '\0';
+  } else
+    b_shengmu[0][1] = '\0';
+
+  /* 考虑多音字的情况  */
+  i = 2;
+  j = 1;
+  for(; i < strlen(a.pinyin) - 2; i++) {
+      if(a.pinyin[i] == ' ') {    /* 若有多个音，pinyin[]数组里第二个音之前有空格 */
+	a_shengmu[j][0] = a.pinyin[i+1];
+	if(a.pinyin[i+2] == 'h') {
+	  a_shengmu[j][1] = 'h';
+	  a_shengmu[j][2] = '\0';
+	} else
+	  a_shengmu[j][1] = '\0';
+	j++;
+      }
+  }
+  
+  i = 2;
+  z = 1;
+  for(; i < strlen(b.pinyin) - 2; i++) {
+    if(b.pinyin[i] == ' ') {
+      b_shengmu[z][0] = b.pinyin[i+1];
+      if(b.pinyin[i+2] == 'h') {
+	b_shengmu[z][1] = 'h';
+	b_shengmu[z][2] = '\0'; }
+      else
+	b_shengmu[z][1] = '\0';
+      z++;
+    }
+  }
+
+  for(x = 0; x < j; x++) /* 若有一种情况不同，temp自加 */
+    for(y = 0; y < z; y++) {
+      if(strcmp(a_shengmu[x], b_shengmu[y]) != 0)
+	temp++;
+    }
+  
+  if(temp == j * z)  /* 若比较所有情况都不同，即a,b声母完全不相似 */
+    p = 0.0;                    
+  if(temp == 0)      /* 全部相同  */
+    p = 1.0;
+  if(temp > 0 && temp < j*z)  /* 部分相似 */
+    p = 0.5;
+
+  return p;
 }
 
 /* 计算两个字的韵母相似度 TODO */
