@@ -19,6 +19,14 @@ const char tian_gan[][8] = { "甲", "乙", "丙", "丁", "戊", "己", "庚", "�
 const char di_zhi[][8] = { "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉",
                            "戌", "亥" };
 
+const char wu_xing[][8] = {"金", "木", "水", "火", "土"};
+
+/* 天干对应的五行，每一个花括号第一个数表示阴阳，第二个数表示五行表中的位置 */
+const char tian_gan_wu_xing_map[][2] = {{1,1}, {0,1}, {1,3}, {0,3}, {1,4}, {0,4}, {1,0}, {0,0}, {1,2}, {0,2}};
+
+/* 地址栏对应的五行，每一个花括号第一个数表示阴阳，第二个数表示五行表中的位置 */
+const char di_zhi_wu_xing_map[][2] = {{1,2}, {0,4}, {1,1}, {0,1}, {1,4}, {0,3}, {1,3}, {0,4}, {1,0}, {0,0}, {1,4}, {0,2}};
+
 const char jie_qi[][16] = { "立春", "雨水", "惊蛰", "春分", "清明", "谷雨", "立夏",
                             "小满", "芒种", "夏至", "小暑", "大暑", "立秋", "处暑",
                             "白露", "秋分",
@@ -166,8 +174,14 @@ const char winter_poem[][100] = { "霜严衣带断 指直不能结",
                                   "凭栏一片风云气 来作神州挥手人" };
 
 struct gz { /* 天干地支结构，两个编号 */
-    int g;
-    int z;
+  int g;
+  int z;
+};
+
+struct bazi {
+  struct gz si_zhu[4];   /* 四柱 */
+  unsigned char yin_yang; /* 每一个比特对应八字中每个字的阴阳 阳=1，阴=0 */
+  unsigned char wx[5];   /* 金木水火土，八字中有金，把wx[0]对应位置1 */
 };
 
 struct form {
@@ -3554,6 +3568,43 @@ get_gan_zhi(int start, int end, int flag)
     }
 }
 
+/* 得到秦统一中国为元年的纪年，正月初一换年 */
+int
+get_qin_year(struct tm *time_info)
+{
+  int qin_year;
+  int chun_jie_month;
+  int chun_jie_day;
+  
+  if (time_info->tm_year + 1900 - 2015 < sizeof(chun_jie) / sizeof(chun_jie[0])) { /* 有春节信息 */
+    chun_jie_month = chun_jie[time_info->tm_year + 1900 - 2015][1];
+    chun_jie_day = chun_jie[time_info->tm_year + 1900 - 2015][2];
+    qin_year = ((time_info->tm_mon + 1 == chun_jie_month
+		 && time_info->tm_mday >= chun_jie_day)
+		|| time_info->tm_mon + 1 > chun_jie_month)
+      ? (time_info->tm_year + 1900 + 221)
+      : (time_info->tm_year - 1 + 1900 + 221);
+  } else { /* 不知道哪天新年，暂用公历年 */
+    qin_year = time_info->tm_year + 1900 + 221;
+  }
+  
+  return qin_year;
+}
+
+
+/* 得到秦统一中国为元年的纪年，立春第一天换年 */
+int
+get_qin_year_for_bazi(struct tm *time_info)
+{
+  int qin_year;
+  
+  qin_year = time_info->tm_year + 1900 + 221;
+  if (time_info->tm_mon <= 1 && time_info->tm_mday <= 4)
+    qin_year -= 1;
+  return qin_year;
+}
+
+
 /*
  * 年干支。 y >= 1。 秦始皇统一六国，y=1。 
  */
@@ -3572,11 +3623,55 @@ get_gan_zhi_nian(int y)
     return x;
 }
 
+int get_jie_qi(int, int, int *);  /* 函数定义在后面，先声明一下让编译通过 */
+/*
+ * 月干支， 计算方法见 zh.wikipedia.org/zh/干支 中的干支纪月那节
+ */
+struct gz
+get_gan_zhi_yue(struct tm *t) 
+{
+  int jq;
+  struct gz nian_gz; /* 年干支 */
+  struct gz x;  /* 返回的月干支 */
+  
+  get_jie_qi(t->tm_mon + 1, t->tm_mday, &jq); /* 算得节气 */
+  x.z = ((int)(jq / 2) + 2) % 12;  /* 地支 */
+
+  /* 计算月天干 */
+  nian_gz = get_gan_zhi_nian(get_qin_year_for_bazi(t));
+  switch (nian_gz.g) {
+  case 0:
+  case 5:
+    x.g = ((int)(jq / 2) + 2) % 10;
+    break;
+  case 1:
+  case 6:
+    x.g = ((int)(jq / 2) + 4) % 10;
+    break;
+  case 2:
+  case 7:
+    x.g = ((int)(jq / 2) + 6) % 10;
+    break;
+  case 3:
+  case 8:
+    x.g = ((int)(jq / 2) + 8) % 10;
+    break;
+  case 4:
+  case 9:
+    x.g = ((int)(jq / 2) + 0) % 10;
+    break;
+  default:
+    break;
+  }
+  
+  return x;
+}
+
 /*
  * 日干支。 
  */
 struct gz
-get_gan_zhi_ri(struct tm* t)
+get_gan_zhi_ri(struct tm *t)
 {
     /*
      * 公元1976年9月9日，毛泽东逝世日甲子 
@@ -3600,6 +3695,7 @@ get_gan_zhi_ri(struct tm* t)
     return x;
 }
 
+
 /*
  * 换为时辰 
  */
@@ -3610,6 +3706,96 @@ get_shi_chen(int h, int m, int s)
      * 23-1: 子， 1-3: 丑， 。。。 用不到 m 和 s 
      */
     return ((h + 1) / 2) % 12;
+}
+
+
+/*
+ * 时干支  h为0-23时  计算方法见 zh.wikipedia.org/zh/干支 中的干支纪时那节
+ */
+struct gz
+get_gan_zhi_shi(int h, struct gz today)
+{
+  struct gz x;
+  x.z = get_shi_chen(h, 0, 0);
+
+  /* 计算时天干 */
+  switch (today.g) {
+  case 0:
+  case 5:
+    x.g = (x.z + 0) % 10;
+    break;
+  case 1:
+  case 6:
+    x.g = (x.z + 2) % 10;
+    break;
+  case 2:
+  case 7:
+    x.g = (x.z + 4) % 10;
+    break;
+  case 3:
+  case 8:
+    x.g = (x.z + 6) % 10;
+    break;
+  case 4:
+  case 9:
+    x.g = (x.z + 8) % 10;
+    break;
+  default:
+    break;
+  }
+  return x;
+}
+
+
+/* 做一个八字 */
+struct bazi
+make_bazi(struct gz nian, struct gz yue, struct gz ri, struct gz shi)
+{
+  struct bazi bz;
+  struct gz x;
+  int i;
+  int j; /* j=0，金, j=1，木, ..., j=4，土 */
+  
+  bz.si_zhu[0] = nian;
+  bz.si_zhu[1] = yue;
+  bz.si_zhu[2] = ri;
+  bz.si_zhu[3] = shi;
+
+  /* 设置阴阳五行 */
+  bz.yin_yang = 0;
+  for (i = 0; i < 5; i++)
+    bz.wx[i] = 0;  
+
+  for (i = 3; i >= 0; i--) {
+    x = bz.si_zhu[i];
+    if (tian_gan_wu_xing_map[x.g][0] == 1)
+      bz.yin_yang |= 1 << ((i * 2) + 1);
+    if (di_zhi_wu_xing_map[x.z][0] == 1)
+      bz.yin_yang |= 1 << (i * 2);
+
+    j = tian_gan_wu_xing_map[x.g][1];
+    bz.wx[j] |= 1 << ((i * 2) + 1);
+    j = di_zhi_wu_xing_map[x.z][1];
+    bz.wx[j] |= 1 << (i * 2);
+  }
+  
+  return bz;
+}
+
+
+int number_of_bit_one(unsigned char);  /* 函数定义在后面 */
+
+/* 打印八字分析结果 */
+void print_bazi_analysis(struct bazi bz)
+{
+  int num_yang_bit = 0;
+  int i;
+  
+  num_yang_bit = number_of_bit_one(bz.yin_yang);
+  printf("八字分析 阳[%d]阴[%d] ", num_yang_bit, 8 - num_yang_bit);
+  for (i = 0; i < 5; i++) {
+    printf("%s[%d]", wu_xing[i], number_of_bit_one(bz.wx[i]));
+  }
 }
 
 /*
@@ -4472,7 +4658,11 @@ main(int argc, char* argv[])
         e,
         flag = 0;
     struct gz curr_year,
-        curr_date;
+      curr_bazi_year,
+      curr_month,
+      curr_date,
+      curr_shi;
+    struct bazi bz;
     time_t t;
     struct tm* time_info;
     int qin_year;
@@ -4480,8 +4670,6 @@ main(int argc, char* argv[])
     int jq,
         offset;
     struct form info;
-    int chun_jie_month,
-        chun_jie_day;
     int qn,
         qy,
         qr,
@@ -4499,30 +4687,31 @@ main(int argc, char* argv[])
     t = time(NULL);
     time_info = localtime(&t);
 
-    if (time_info->tm_year + 1900 - 2015 < sizeof(chun_jie) / sizeof(chun_jie[0])) {
-        chun_jie_month = chun_jie[time_info->tm_year + 1900 - 2015][1];
-        chun_jie_day = chun_jie[time_info->tm_year + 1900 - 2015][2];
-        qin_year = ((time_info->tm_mon + 1 == chun_jie_month
-                     && time_info->tm_mday >= chun_jie_day)
-                    || time_info->tm_mon + 1 > chun_jie_month)
-                       ? (time_info->tm_year + 1900 + 221)
-                       : (time_info->tm_year - 1 + 1900 + 221);
-    } else { /* 不知道哪天新年，暂用公历年 
-				 */
-        qin_year = time_info->tm_year + 1900 + 221;
-    }
+    qin_year = get_qin_year(time_info);
+    
     curr_year = get_gan_zhi_nian(qin_year);
+    curr_bazi_year = get_gan_zhi_nian(get_qin_year_for_bazi(localtime(&t)));
+    curr_month = get_gan_zhi_yue(localtime(&t));
     curr_date = get_gan_zhi_ri(localtime(&t));
     shi = get_shi_chen(time_info->tm_hour, time_info->tm_min,
                        time_info->tm_sec);
+    curr_shi = get_gan_zhi_shi(time_info->tm_hour, curr_date);
+    bz = make_bazi(curr_bazi_year, curr_month, curr_date, curr_shi);
     offset = get_jie_qi(time_info->tm_mon + 1, time_info->tm_mday, &jq);
 
     if (info.s == 0 && info.e == 0) {
-        printf("秦%d年 岁在%s%s [%s第%d天] %s%s日 %s时[%02d:%02d:%02d]<br>\n",
+        printf("秦%d年 岁在%s%s [%s第%d天] %s%s日 %s时[%02d:%02d:%02d] ",
                qin_year, tian_gan[curr_year.g], di_zhi[curr_year.z],
                jie_qi[jq], offset, tian_gan[curr_date.g],
                di_zhi[curr_date.z], di_zhi[shi], time_info->tm_hour,
                time_info->tm_min, time_info->tm_sec);
+	printf("此刻八字 [%s%s %s%s %s%s %s%s] ",
+	       tian_gan[curr_bazi_year.g], di_zhi[curr_bazi_year.z],
+	       tian_gan[curr_month.g], di_zhi[curr_month.z],
+	       tian_gan[curr_date.g], di_zhi[curr_date.z],
+	       tian_gan[curr_shi.g], di_zhi[curr_shi.z]);
+	print_bazi_analysis(bz);
+	printf("<br/>\n");
         print_random_poem(jq);
         convert_to_qinli_nian_yue_ri(time_info->tm_year + 1900,
                                      time_info->tm_mon + 1,
