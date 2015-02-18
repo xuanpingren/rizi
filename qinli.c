@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include <ctype.h>
 #include "ccgi-1.1/ccgi.h"
 
 #define MAX_RECORD_SIZE 500
@@ -36,7 +37,7 @@ const char jie_qi[][16] = { "立春", "雨水", "惊蛰", "春分", "清明", "�
 const char ri[][16] = { "初一", "初二", "初三", "初四", "初五", "初六", "初七",
                         "初八", "初九", "初十",
                         "十一", "十二", "十三", "十四", "十五", "十六", "十七",
-                        "十八", "十九", "廿十",
+                        "十八", "十九", "二十",
                         "廿一", "廿二", "廿三", "廿四", "廿五", "廿六", "廿七",
                         "廿八", "廿九", "三十", "卅一" };
 
@@ -179,11 +180,12 @@ struct gz { /* 天干地支结构，两个编号 */
 };
 
 struct bazi {
-  struct gz si_zhu[4];   /* 四柱 */
+  struct gz si_zhu[4];    /* 四柱 */
   unsigned char yin_yang; /* 每一个比特对应八字中每个字的阴阳 阳=1，阴=0 */
-  unsigned char wx[5];   /* 金木水火土，八字中有金，把wx[0]对应位置1 */
+  unsigned char wx[5];    /* 金木水火土，八字中有金，把wx[0]对应位置1 */
 };
 
+#define BAZI_SIZE 30
 struct form {
   int s;
   int e;
@@ -191,8 +193,9 @@ struct form {
   int display_gl; /* 顺便显示公历 */
   /* 以下各项起名用 */
   char x[8];     /* 姓 */
-  char bazi[20]; /* 八字 */
+  char bazi[BAZI_SIZE]; /* 八字 */
   int  mode;     /* 模式 */
+  int  code;     /* 起名号码 */
 };
 
 
@@ -3512,7 +3515,7 @@ get_form_input(struct form* info)
             if (strcmp(name, "bazi") == 0)
 	      strcpy(info->bazi, value[i]);
             if (strcmp(name, "mode") == 0)
-	      info->mode = atoi(value[i]);
+	      info->code = atoi(value[i]);
         }
     }
 
@@ -3676,18 +3679,31 @@ get_gan_zhi_ri(struct tm *t)
     /*
      * 公元1976年9月9日，毛泽东逝世日甲子 
      */
-    double s;
     int diff;
-    struct tm kg = { 0 };
+    struct tm kg;
     struct gz x;
-
+    time_t t1, t2;
+    
     kg.tm_year = 76;
-    kg.tm_mon = 9 - 1;
+    kg.tm_mon  = 9 - 1;
     kg.tm_mday = 9;
+    kg.tm_hour = 0;
+    kg.tm_min  = 0;
+    kg.tm_sec  = 0;
 
-    s = difftime(mktime(t), mktime(&kg));
+    t2 = mktime(t);
+    t1 = mktime(&kg);
+    /* s = difftime(t2, t1); 奇怪，这个函数不返回正确值 */ 
+    if (t1 == -1 || t2 == -1)
+      exit(1);
 
-    diff = (int)(s / (24 * 60 * 60));
+    diff = (int) ((t2 - t1) / (24 * 60 * 60));
+    
+    /* 
+    printf("DEBUG <b>seconds %lf %ld  [%d %d %d %d %d]</b>", s, t2, t->tm_year, t->tm_mon, t->tm_mday, t->tm_hour, t->tm_min);
+    printf("DEBUG <b>seconds %lf %ld  [%d %d %d %d %d]</b>", s, t1, kg.tm_year, kg.tm_mon, kg.tm_mday, kg.tm_hour, kg.tm_min);
+    printf("DEBUG <b>days %d</b>", diff);
+    */
 
     x.g = (0 + diff) % 10;
     x.z = (0 + diff) % 12;
@@ -3789,12 +3805,13 @@ int number_of_bit_one(unsigned char);  /* 函数定义在后面 */
 void print_bazi_analysis(struct bazi bz)
 {
   int num_yang_bit = 0;
-  int i;
-  
+  int i, n;
+
   num_yang_bit = number_of_bit_one(bz.yin_yang);
   printf("八字分析 阳[%d]阴[%d] ", num_yang_bit, 8 - num_yang_bit);
   for (i = 0; i < 5; i++) {
-    printf("%s[%d]", wu_xing[i], number_of_bit_one(bz.wx[i]));
+    n = number_of_bit_one(bz.wx[i]);
+    printf("%s[%d]", wu_xing[i], n);
   }
 }
 
@@ -4357,7 +4374,7 @@ compute_shengmu_similarity(struct zi a, struct zi b)
 double
 compute_yunmu_similarity(struct zi a, struct zi b)
 {
-  /* 与计算两个字的声母相似度同理 */
+  /* 与计算两个字的韵母相似度同理 */
   return 0.0;
 }
 
@@ -4523,7 +4540,7 @@ print_baby_name(struct baby_name bn)
 	if (i < NUM_CANDIDATE_NAME - 1)
 	  printf("&nbsp;&nbsp;");
     }
-    printf(" ]<br/>");
+    printf(" ]");
 }
 
 
@@ -4715,6 +4732,167 @@ convert_to_qinli_nian_yue_ri(int year, int month, int day,
 }
 
 
+/* 二分法查找 参考  http://en.wikipedia.org/wiki/Binary_search_algorithm */
+int
+binary_search(const int a[], int key, int imin, int imax)
+{
+  int imid;
+  
+  while (imax >= imin) {
+    imid = (int) ((imin + imax) / 2);
+    if(a[imid] == key)
+      return imid; 
+    else if (a[imid] < key)
+      imin = imid + 1;
+    else         
+      imax = imid - 1;
+  }
+  return -1;
+}
+
+/* 查 naming_pass_phrase 表，找到返回1， 找不到返回0 */
+int
+naming_code_match(int code)
+{
+  const int naming_pass_phrase[] = {  /* 升序排列 */
+    104596,107673,108144,111026,113271,120505,123521,123522,
+    127677,135690,140447,142273,143959,144427,145025,150324,
+    150898,151115,151876,152069,153011,154118,154176,155738,
+    156763,157019,157923,158712,161126,162889,163133,163584,
+    163828,169891,174533,174568,175778,175973,178548,183142,
+    183547,183975,185028,188234,193534,193919,196081,197207,
+    198621,199725,201896,203370,205060,206146,210421,213697,
+    214649,217611,223192,226838,229264,236240,241565,242844,
+    244467,248526,249774,250077,251499,254882,258130,260262,
+    262219,265041,266258,272681,273283,274774,277859,278542,
+    278932,282461,282475,283613,285050,285193,289960,293722,
+    297041,297127,300028,303812,311264,315681,320190,325513,
+    331910,335167,336628,339602,339802,341391,343877,346973,
+    348867,353063,357538,361615,363610,364264,364581,371584,
+    376939,379390,384241,387951,391894,397286,398247,399413,
+    404186,408138,409606,412023,417981,418058,429359,432807,
+    440126,441273,447125,452830,464859,465972,466099,469768,
+    480149,483146,494459,499470,502612,505561,520654,538461,
+    554833,556770,559372,573786,582848,584522
+  };
+  
+  return binary_search(naming_pass_phrase, code, 0, sizeof(naming_pass_phrase)/sizeof(naming_pass_phrase[0]) - 1);
+}
+
+
+#define utf8_char_len( byte ) ((( 0xE5000000 >> (( byte >> 3 ) & 0x1e )) & 3 ) + 1)
+#define bit_is_one(x, position) ((x) & (1<<(position)))
+int number_of_bytes_in_utf8_char(unsigned char c)
+{
+  int n = 0;
+  
+  if ((c & 0x80) == 0)
+    n = 1;
+  if ((c & 0x80) && (c & 0x40) && !(c & 0x20))
+    n = 2;
+  if ((c & 0x80) && (c & 0x40) && (c & 0x20) && !(c & 0x10))
+    n = 3;
+  if ((c & 0x80) && (c & 0x40) && (c & 0x20) && (c & 0x10))
+    n = 4;
+
+  return n;
+}
+
+char extract_time_info_from_utf8_string(char s[], int len, int t[], int n, int *m)
+{
+  int i, num_byte, mark = 0;
+  char zi[4];
+  char calendar_type = 'g'; /* n代表公历 */
+  char *number, *p;
+  
+  /* 决定是农历，公历还是天干地支 */
+  for (i = 0; i < len && s[i] != '\0'; i++) 
+    if ((num_byte = number_of_bytes_in_utf8_char(s[i])) > 1) {
+      strncpy(zi, s + i, num_byte);
+      zi[3] = '\0';
+      if (strcmp(zi, "阳") == 0 || strcmp(zi, "公") == 0) {
+	calendar_type = 'g'; 	/* 公历也 */
+      } else if (strcmp(zi, "农") == 0 || strcmp(zi, "阴") == 0) {
+	return 'n';    /* 是农历  */
+      } else if (strcmp(zi, "甲") == 0 || strcmp(zi, "乙") == 0
+		 || strcmp(zi, "丙") == 0 || strcmp(zi, "丁") == 0
+		 || strcmp(zi, "戊") == 0 || strcmp(zi, "己") == 0
+		 || strcmp(zi, "庚") == 0 || strcmp(zi, "辛") == 0
+		 || strcmp(zi, "壬") == 0 || strcmp(zi, "癸") == 0) {
+	return 't'; /* 是天干地支 */
+      }
+      i += num_byte - 1;
+      mark = i;
+    }
+
+  /* 读出年月日时分信息来  */
+  p = s + mark + 1;
+  while (isspace(*p)) /* 跳过空格 */
+    p++;
+  
+  i = 0;
+  while((number = strtok(i != 0 ? NULL : p, " ")) != NULL)
+    if (i < n) {
+      t[i] = atoi(number);
+      i++;
+    }
+  *m = i; /* 共读入多少个数 */
+  return calendar_type;
+}
+
+/* 从公历年中算出八字 */
+struct bazi
+get_bazi_from_gongli(int year, int month, int day, int hour, int minute)
+{
+  struct tm gongli_time;
+  struct gz  ngz, ygz, rgz, sgz;  /* 年月日时干支 */
+
+  gongli_time.tm_year  = year - 1900;
+  gongli_time.tm_mon   = month - 1;
+  gongli_time.tm_mday  = day;
+  gongli_time.tm_hour  = hour;
+  gongli_time.tm_min   = minute;
+  gongli_time.tm_sec   = 0;
+
+  ngz = get_gan_zhi_nian(get_qin_year_for_bazi(&gongli_time));
+  ygz = get_gan_zhi_yue(&gongli_time);
+  rgz = get_gan_zhi_ri(&gongli_time);
+  sgz = get_gan_zhi_shi(hour, rgz);
+
+  /* printf("DEBUG <b>y%d m%d d%d h%d m%d</b>", year, month, day, hour, minute); */
+  
+  return make_bazi(ngz, ygz, rgz, sgz);
+}
+
+
+void print_bazi(struct bazi bz)
+{
+    printf(" <font color=grey> [%s%s %s%s %s%s %s%s] ",
+	   tian_gan[bz.si_zhu[0].g], di_zhi[bz.si_zhu[0].z],
+	   tian_gan[bz.si_zhu[1].g], di_zhi[bz.si_zhu[1].z],
+	   tian_gan[bz.si_zhu[2].g], di_zhi[bz.si_zhu[2].z],
+	   tian_gan[bz.si_zhu[3].g], di_zhi[bz.si_zhu[3].z]);
+
+}
+
+/* 展示一下八字, s是用户在页面的输入 */
+void print_bazi_given_user_input(char s[])
+{
+  int time[6] = {2015, 2, 17, 9, 17, 1}; /* 存年月日时分秒 */
+  int num_time_item = 0;
+  char calendar_type;
+  struct bazi bz;
+  
+  calendar_type = extract_time_info_from_utf8_string(s, BAZI_SIZE, time, 6, &num_time_item);
+  if (calendar_type == 'g' && num_time_item >= 4) { /* 是公历且信息足够  */
+    bz = get_bazi_from_gongli(time[0], time[1], time[2], time[3], time[4]);
+    printf(" <font color=grey>生辰八字</font> ");
+    print_bazi(bz);
+    print_bazi_analysis(bz);
+  }
+}
+
+
 int
 main(int argc, char* argv[])
 {
@@ -4728,7 +4906,7 @@ main(int argc, char* argv[])
       curr_shi;
     struct bazi bz;
     time_t t;
-    struct tm* time_info;
+    struct tm *time_info;
     int qin_year;
     int shi;
     int jq,
@@ -4769,12 +4947,6 @@ main(int argc, char* argv[])
                jie_qi[jq], offset, tian_gan[curr_date.g],
                di_zhi[curr_date.z], di_zhi[shi], time_info->tm_hour,
                time_info->tm_min, time_info->tm_sec);
-	printf("此刻八字 [%s%s %s%s %s%s %s%s] ",
-	       tian_gan[curr_bazi_year.g], di_zhi[curr_bazi_year.z],
-	       tian_gan[curr_month.g], di_zhi[curr_month.z],
-	       tian_gan[curr_date.g], di_zhi[curr_date.z],
-	       tian_gan[curr_shi.g], di_zhi[curr_shi.z]);
-	print_bazi_analysis(bz);
 	printf("<br/>\n");
         print_random_poem(jq);
         convert_to_qinli_nian_yue_ri(time_info->tm_year + 1900,
@@ -4782,8 +4954,20 @@ main(int argc, char* argv[])
                                      time_info->tm_mday, &qn, &qy, &qr,
                                      &ndays);
 	if (strcmp(info.x, "") != 0) { /* 要起名字 */
-	  struct baby_name candidate_name = select_baby_name(info.mode, info.x, info.bazi, curr_year, curr_date);
-	  print_baby_name(candidate_name);
+	  struct baby_name candidate_name;
+	  if (info.code == 0) {
+	    candidate_name = select_baby_name(0, info.x, info.bazi, curr_year, curr_date);
+	    print_baby_name(candidate_name);
+	    printf("<br/>");
+	  } else {
+	    if (naming_code_match(info.code) != -1) {
+	      info.mode = (int) (info.code / 10000);
+	      candidate_name = select_baby_name(info.mode, info.x, info.bazi, curr_year, curr_date);
+	      print_baby_name(candidate_name);
+	      print_bazi_given_user_input(info.bazi);
+	      printf("<br/>");
+	    }
+	  }
 	}
         print_circles(jq, offset, qy, qr, ndays, 33.0, 400.0, 300.0, info);
     } else if (info.s <= 0 || info.e <= 0 || info.s > info.e) {
@@ -4801,6 +4985,9 @@ main(int argc, char* argv[])
         get_gan_zhi(s, e, flag);
     }
     printf("</p>");
+    printf("<font color=grey>此刻八字</font> ");
+    print_bazi(make_bazi(curr_bazi_year, curr_month, curr_date, curr_shi));
+    print_bazi_analysis(bz);
     bottom();
     printf("</body>");
     printf("</html>");
