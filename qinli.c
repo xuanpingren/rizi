@@ -219,7 +219,7 @@ struct zi {
   char code[6];     /* Unicode编码 */
   double p;         /* 这个字出现概率 坏字极小概率出现 */ 
   struct zi_property zp; /* 字的一些音调阴阳五行属性 */
-  char pinyin[20]   /* 拼音 */;
+  char pinyin[25]   /* 拼音 */;
   char swjz_zy[75]; /* 说文解字字义 不要超过40字 */ 
 };
 
@@ -4298,87 +4298,96 @@ compute_yindiao_similarity(struct zi a, struct zi b)
   return 1.0 * num_common_yindiao / num_total_yindiao;
 }
 
-/* 计算两个字的声母相似度 作者[flx413] */
-double
-compute_shengmu_similarity(struct zi a, struct zi b)
+
+/* compute_shengmu_similarity 的帮助函数 */
+int set_shengmu(struct zi z, char zi_shengmu[][3])
 {
-  /* 要考虑单音字与多音字。令a的声母集合为A，b的声母集合为B，那么a与b
-     的声母相似度等于 A交B集合大小除以A并B集合大小 */
+  int i, n = 0;
 
-  double p = 0.0;
-  char a_shengmu[6][3], b_shengmu[6][3]; /* 考虑多音字，字a,b最多有6个声母 （保守起见） */
-  int i, j, z;
+  for(i = 0; i < strlen(z.pinyin) - 1; i++)
+    if(i == 0 || z.pinyin[i-1] == ' ') {
+      zi_shengmu[n][0] = z.pinyin[i];
+      if(z.pinyin[i+1] == 'h') {
+	zi_shengmu[n][1] = 'h';
+	zi_shengmu[n][2] = '\0';
+      } else
+	zi_shengmu[n][1] = '\0';
+      n++;
+    }
+
+  return n;
+}
+
+/* 计算两个字的声母相似度 作者[flx413] */
+double compute_shengmu_similarity(struct zi a, struct zi b)
+{
+  char a_shengmu[6][3], b_shengmu[6][3];  /* 考虑多音字，字a,b最多有6个声母 （保守起见） */
   int x, y, temp;
-  
-  /* 取得字a的声母 */
-  a_shengmu[0][0] = a.pinyin[0]; 
-  if(a.pinyin[1] == 'h') {
-      a_shengmu[0][1] = 'h';
-      a_shengmu[0][2] = '\0';
-  } else
-    a_shengmu[0][1]='\0';
+  int i, j;
+  double p;
 
-  /* 取得字b的声母 */
-  b_shengmu[0][0] = b.pinyin[0]; 
-  if(b.pinyin[1] == 'h') {
-    b_shengmu[0][1] = 'h';
-    b_shengmu[0][2] = '\0';
-  } else
-    b_shengmu[0][1] = '\0';
+  x = set_shengmu(a, a_shengmu);
+  y = set_shengmu(b, b_shengmu);
 
-  /* 考虑多音字的情况  */
-  i = 2;
-  j = 1;
-  for(; i < strlen(a.pinyin) - 2; i++) {
-      if(a.pinyin[i] == ' ') {    /* 若有多个音，pinyin[]数组里第二个音之前有空格 */
-	a_shengmu[j][0] = a.pinyin[i+1];
-	if(a.pinyin[i+2] == 'h') {
-	  a_shengmu[j][1] = 'h';
-	  a_shengmu[j][2] = '\0';
-	} else
-	  a_shengmu[j][1] = '\0';
-	j++;
-      }
-  }
-  
-  i = 2;
-  z = 1;
-  for(; i < strlen(b.pinyin) - 2; i++) {
-    if(b.pinyin[i] == ' ') {
-      b_shengmu[z][0] = b.pinyin[i+1];
-      if(b.pinyin[i+2] == 'h') {
-	b_shengmu[z][1] = 'h';
-	b_shengmu[z][2] = '\0'; }
-      else
-	b_shengmu[z][1] = '\0';
-      z++;
-    }
-  }
+  temp = 0;
+  for(i = 0; i < x; i++)
+    for(j = 0; j < y; j++)
+	if(strcmp(a_shengmu[i], b_shengmu[j]) != 0) /* 若有一种情况不同，temp自加 */
+	  temp++;
 
-  for(x = 0; x < j; x++) /* 若有一种情况不同，temp自加 */
-    for(y = 0; y < z; y++) {
-      if(strcmp(a_shengmu[x], b_shengmu[y]) != 0)
-	temp++;
-    }
-  
-  if(temp == j * z)  /* 若比较所有情况都不同，即a,b声母完全不相似 */
-    p = 0.0;                    
-  if(temp == 0)      /* 全部相同  */
+  if(temp == x * y)  /* 若比较所有情况都不同，即a,b声母完全不相似 */
+    p = 0.0;
+  if(temp == 0) /* 全部相同  */
     p = 1.0;
-  if(temp > 0 && temp < j*z)  /* 部分相似 */
+  if(temp > 0 && temp < x * y) /* 部分相同 */
     p = 0.5;
 
   return p;
 }
 
-/* 计算两个字的韵母相似度 TODO */
-double
-compute_yunmu_similarity(struct zi a, struct zi b)
+#define YUNMU_LEN 6
+void get_yunmu(char a[], char b[])
 {
-  /* 与计算两个字的韵母相似度同理 */
-  return 0.0;
+  strcpy(b, &a[strlen(a) > 1 && a[1] == 'h' ? 2 : 1]); /* 复制韵母 */
+  b[strlen(b)-1] = '\0';  /* 不要声调 */
 }
 
+int set_yunmu(struct zi z, char zi_yunmu[][YUNMU_LEN])
+{
+  char *p; /* 指向一个拼音 */
+  int n = 0;
+  
+  while((p = strtok(n != 0 ? NULL : z.pinyin, " ")) != NULL) /* 检查每个拼音 */
+    get_yunmu(p, zi_yunmu[n++]); /* 获得韵母，就是声母后面的那部分 */
+
+  return n;
+}
+
+/* 计算两个字的韵母相似度 作者[flx413] */
+double compute_yunmu_similarity(struct zi a, struct zi b)
+{
+  int x, y;
+  int i, j, temp = 0;
+  char a_yunmu[6][YUNMU_LEN], b_yunmu[6][YUNMU_LEN];
+  double p;
+  
+  x = set_yunmu(a, a_yunmu);
+  y = set_yunmu(b, b_yunmu);
+
+  for(i = 0; i < x; i++)   /* 依次比较两个字的韵母是否相同 */
+    for(j = 0; j < y; j++)
+  	if(strcmp(a_yunmu[i], b_yunmu[j]) != 0)
+	  temp++;
+  
+  if(temp == x * y)
+    p = 0.0;
+  if(temp == 0)
+    p = 1.0;
+  if(temp > 0 && temp < x * y)
+    p = 0.5;
+  
+  return p;
+}
 
 /* 检查所选的名字阴阳是否满足要求 TODO */
 int
