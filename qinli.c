@@ -4318,11 +4318,12 @@ int set_shengmu(struct zi z, char zi_shengmu[][3])
   return n;
 }
 
+
 /* 计算两个字的声母相似度 作者[flx413] */
 double compute_shengmu_similarity(struct zi a, struct zi b)
 {
   char a_shengmu[6][3], b_shengmu[6][3];  /* 考虑多音字，字a,b最多有6个声母 （保守起见） */
-  int x, y, temp;
+  int x, y, temp, temp2;
   int i, j;
   double p;
 
@@ -4330,10 +4331,14 @@ double compute_shengmu_similarity(struct zi a, struct zi b)
   y = set_shengmu(b, b_shengmu);
 
   temp = 0;
+  temp2 = 0;
   for(i = 0; i < x; i++)
-    for(j = 0; j < y; j++)
+    for(j = 0; j < y; j++) {
 	if(strcmp(a_shengmu[i], b_shengmu[j]) != 0) /* 若有一种情况不同，temp自加 */
 	  temp++;
+	if(a_shengmu[i][0] == b_shengmu[j][0] && (a_shengmu[i][1] == 'h') + (b_shengmu[j][1] == 'h') == 1) /* 考虑c与ch这种情况，很多南方人分不清 */
+	  temp2++;
+    }
 
   if(temp == x * y)  /* 若比较所有情况都不同，即a,b声母完全不相似 */
     p = 0.0;
@@ -4342,14 +4347,61 @@ double compute_shengmu_similarity(struct zi a, struct zi b)
   if(temp > 0 && temp < x * y) /* 部分相同 */
     p = 0.5;
 
-  return p;
+  p = p + (1.0*temp2/(x*y)) * 0.5;
+  return p < 1.0 ? p : 1.0;
 }
 
 #define YUNMU_LEN 6
+/* flx413 */
 void get_yunmu(char a[], char b[])
 {
   strcpy(b, &a[strlen(a) > 1 && a[1] == 'h' ? 2 : 1]); /* 复制韵母 */
   b[strlen(b)-1] = '\0';  /* 不要声调 */
+
+  if(strcmp(b, "r") == 0)    /* 会有单独出现r的韵母吗？ 放在这里，也无大碍 */
+    strcpy(b, "er");
+
+  if(strcmp(b, "uo") == 0)   /* 托，我 */
+    strcpy(b, "o");
+
+  if(strcmp(b, "ua") == 0)   /* 话，他 */
+    strcpy(b, "a");
+
+  if(strcmp(b, "uan") == 0)  /* 宽，合并到后鼻音匡 */
+    strcpy(b, "ang");
+
+  if(strcmp(b, "an") == 0)   /* 刊，合并到后鼻音康 */
+    strcpy(b, "ang");
+  
+  if(strcmp(b, "uang")==0)   /* 框，杭 */
+    strcpy(b, "ang");
+
+  if(strcmp(b, "iang")==0)   /* 香，杭 */
+    strcpy(b, "ang");
+  
+  if(strcmp(b, "iong")==0)   /* 兄，同 */
+    strcpy(b, "ong");
+  
+  if(strcmp(b, "iao") == 0)  /* 表，讨 */
+    strcpy(b, "ao");
+
+  if(strcmp(b, "ia")==0)     /* 霞，他 */
+    strcpy(b, "a");
+
+  if(strcmp(b, "uai")==0)     /* 怀，亥 */
+    strcpy(b, "ai");
+
+  if(strcmp(b, "in")==0)     /* 听，厅 */
+    strcpy(b, "ing");
+
+  if(strcmp(b, "en")==0)     /* 很，衡 */
+    strcpy(b, "eng");
+
+  if(strcmp(b, "ian")==0)     /* 现，切 */
+    strcpy(b, "ie");
+
+  if(strcmp(b, "ui")==0)     /* 会，为 */
+    strcpy(b, "ei");
 }
 
 int set_yunmu(struct zi z, char zi_yunmu[][YUNMU_LEN])
